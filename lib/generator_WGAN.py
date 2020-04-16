@@ -29,7 +29,7 @@ class CaptionGenerator(object):
         self.weight_initializer = tf.contrib.layers.xavier_initializer()
         self.const_initializer = tf.constant_initializer(0.0)
         self.emb_initializer = tf.random_uniform_initializer(minval=-0.5, maxval=0.5)
-        self.face_initializer = tf.random_uniform_initializer(minval=-0.5, maxval=0.5)
+        self.target_senti_initializer = tf.random_uniform_initializer(minval=-0.5, maxval=0.5)
 
         # Place holder for features and captions
         self.features = tf.placeholder(tf.float32, [None, self.L, self.D])
@@ -159,23 +159,23 @@ class CaptionGenerator(object):
             x = tf.nn.embedding_lookup(w, inputs, name='word_vector')  # (N, T, M) or (N, M)
             return x
 
-    def _face_embedding(self, inputs, reuse=False):
-        with tf.variable_scope('face_embedding', reuse=reuse):
-            w = tf.get_variable('w', [3, 256], initializer=self.face_initializer, trainable=False)
-            x = tf.nn.embedding_lookup(w, inputs, name='face_vector')  # (N, T, M) or (N, M)
+    def _target_senti_embedding(self, inputs, reuse=False):
+        with tf.variable_scope('target_senti_embedding', reuse=reuse):
+            w = tf.get_variable('w', [3, 256], initializer=self.target_senti_initializer, trainable=False)
+            x = tf.nn.embedding_lookup(w, inputs, name='target_senti_vector')  # (N, T, M) or (N, M)
             x = x[:,0,:]
             return x
 
     def _imem_embedding(self, inputs, reuse=False):
         with tf.variable_scope('imem_embedding', reuse=reuse):
-            w = tf.get_variable('w', [3, self.H], initializer=self.face_initializer, trainable=False)
-            x = tf.nn.embedding_lookup(w, inputs, name='face_vector')  # (N, T, M) or (N, M)
+            w = tf.get_variable('w', [3, self.H], initializer=self.target_senti_initializer, trainable=False)
+            x = tf.nn.embedding_lookup(w, inputs, name='target_senti_vector')  # (N, T, M) or (N, M)
             x = x[:,0,:]
             return x
 
     def _ext_embedding(self, inputs, reuse=False):
         with tf.variable_scope('ext_embedding', reuse=reuse):
-            w = tf.get_variable('w', [3, 256], initializer=self.face_initializer, trainable=False)
+            w = tf.get_variable('w', [3, 256], initializer=self.target_senti_initializer, trainable=False)
             x = tf.nn.embedding_lookup(w, inputs, name='ext_vector')  # (N, T, M) or (N, M)
             x = x[:,0,:]
             return x
@@ -208,7 +208,7 @@ class CaptionGenerator(object):
             context = tf.multiply(beta, context, name='selected_context')
             return context, beta
 
-    def _decode_lstm(self, x, h, context, features_face, dropout=False, reuse=False):
+    def _decode_lstm(self, x, h, context, features_target_senti, dropout=False, reuse=False):
         with tf.variable_scope('logits', reuse=reuse):
 
             w_h_1 = tf.get_variable('w_h_1', [self.H, self.E], initializer=self.weight_initializer)
@@ -241,11 +241,11 @@ class CaptionGenerator(object):
             out_logits = tf.matmul(tf.matmul(tf.matmul(h_logits, w_out_1), w_out_2), w_out_3)
 
             w_ctx2out_extra = tf.get_variable('w_ctx2out_extra', [3, self.V], initializer=self.weight_initializer)
-            out_logits += 0.0 * tf.matmul(features_face, w_ctx2out_extra) + b_out
+            out_logits += 0.0 * tf.matmul(features_target_senti, w_ctx2out_extra) + b_out
 
             return out_logits
 
-    def _decode_lstm_2(self, x, h, context, features_face, dropout=False, reuse=False):
+    def _decode_lstm_2(self, x, h, context, features_target_senti, dropout=False, reuse=False):
         with tf.variable_scope('logits_2', reuse=reuse):
             w_h = tf.get_variable('w_h', [self.H, 512], initializer=self.weight_initializer)#, regularizer=tf.contrib.layers.l2_regularizer(0.01))
             b_h = tf.get_variable('b_h', [512], initializer=self.const_initializer)
@@ -279,7 +279,7 @@ class CaptionGenerator(object):
         captions_out = captions[:, 5:]
         mask = tf.to_float(tf.not_equal(captions_out, self._null))
 
-        face_label = tf.cast(self.captions[:, 0:3], tf.float32)
+        target_senti_label = tf.cast(self.captions[:, 0:3], tf.float32)
 
         features = self._batch_norm(features[:, :, 0:2048], mode='train', name='conv_features')
 
@@ -310,17 +310,17 @@ class CaptionGenerator(object):
 
             (c, h) = self.recurrent_unit(x_temp, context, c, h, reuse=(t != 0))
 
-            logits = self._decode_lstm(x_temp, h, context, face_label, dropout=self.dropout,reuse=(t != 0))
+            logits = self._decode_lstm(x_temp, h, context, target_senti_label, dropout=self.dropout,reuse=(t != 0))
 
             loss += tf.reduce_sum( tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                                    labels=captions_out[:, t]) * mask[:,t] )
 
             sampled_word_list.append(logits)
 
-            logits_2 = self._decode_lstm_2(x[:,t,:], h, context, face_label, dropout=self.dropout, reuse=(t!=0))
-            loss_2 += tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = logits_2, labels=tf.argmax(tf.cast(face_label, dtype=tf.int32),1) ))
+            logits_2 = self._decode_lstm_2(x[:,t,:], h, context, target_senti_label, dropout=self.dropout, reuse=(t!=0))
+            loss_2 += tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(logits = logits_2, labels=tf.argmax(tf.cast(target_senti_label, dtype=tf.int32),1) ))
 
-	    loss_2 = loss_2/(self.T-4)
+        loss_2 = loss_2/(self.T-4)
         loss += 0.0*loss_2
 
         if self.alpha_c > 0:
@@ -337,7 +337,7 @@ class CaptionGenerator(object):
 
         features = self.features
 
-        face_label = tf.cast(features[:, 1, 2048:2051], tf.float32)
+        target_senti_label = tf.cast(features[:, 1, 2048:2051], tf.float32)
 
         features = self._batch_norm(features[:, :, 0:2048], mode='test', name='conv_features')
 
@@ -369,7 +369,7 @@ class CaptionGenerator(object):
 
             (c, h) = self.recurrent_unit(x, context, c, h, reuse=(t!=0) )
 
-            logits= self._decode_lstm(x, h, context, face_label, reuse=(t!= 0) )
+            logits= self._decode_lstm(x, h, context, target_senti_label, reuse=(t!= 0) )
 
             sampled_word = tf.argmax(logits, 1)
             sampled_word_list.append(sampled_word)
@@ -387,7 +387,7 @@ class CaptionGenerator(object):
         features = self.features
 
         features_category = tf.cast(self.sample_caption[:, 3:4], tf.int32)
-        features_face = self._face_embedding(inputs=features_category)
+        features_target_senti = self._target_senti_embedding(inputs=features_category)
         features_ext = self._ext_embedding(inputs=features_category)
 
         captions = self.sample_caption[:, 4:self.T]
@@ -415,11 +415,11 @@ class CaptionGenerator(object):
             if self.selector:
                 context, beta = self._selector(context, h, reuse=(t != 0))
 
-	    context = tf.nn.dropout(context, 0.5)
-            features_face = tf.nn.dropout(features_face, 0.5)
+            context = tf.nn.dropout(context, 0.5)
+            features_target_senti = tf.nn.dropout(features_target_senti, 0.5)
             features_ext = tf.nn.dropout(features_ext, 0.5)
 
-            context_lstm = tf.concat([features_face, context], 1)
+            context_lstm = tf.concat([features_target_senti, context], 1)
 
             with tf.variable_scope('lstm', reuse=(t != 0)):
                 _, (c, h) = lstm_cell(inputs=tf.concat([word, context_lstm], 1), state=[c, h])
@@ -440,7 +440,7 @@ class CaptionGenerator(object):
         features = self.features
 
         features_category = tf.cast(features[:, 1, 515:516], tf.int32)
-        features_face = self._face_embedding(inputs=features_category )
+        features_target_senti = self._target_senti_embedding(inputs=features_category )
         features_ext = self._ext_embedding(inputs=features_category)
 
         features = self._batch_norm(features[:, :, 0:512], mode='test', name='conv_features')
@@ -466,11 +466,11 @@ class CaptionGenerator(object):
                 context, beta = self._selector(context, h, reuse=(t != 0))
                 beta_list.append(beta)
 
-	    context = tf.nn.dropout(context, 0.5)
-            features_face = tf.nn.dropout(features_face, 0.5)
+            context = tf.nn.dropout(context, 0.5)
+            features_target_senti = tf.nn.dropout(features_target_senti, 0.5)
             features_ext = tf.nn.dropout(features_ext, 0.5)
 
-            context_lstm = tf.concat([features_face, context], 1)
+            context_lstm = tf.concat([features_target_senti, context], 1)
 
             with tf.variable_scope('lstm', reuse=(t != 0)):
                 _, (c, h) = lstm_cell(inputs=tf.concat([x, context_lstm], 1), state=[c, h])

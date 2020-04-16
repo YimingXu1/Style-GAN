@@ -124,9 +124,9 @@ class CaptioningSolver(object):
             curr_loss = 0
             start_t = time.time()
 
-            print 'Start pre-training...'
-
-            for e in range(0):#self.n_epochs):
+            #the first training loop
+            print 'Start pre-training generator...'
+            for e in range(self.n_epochs):
             
                 rand_idxs = np.random.permutation(n_examples)
                 captions = captions[rand_idxs]
@@ -213,6 +213,7 @@ class CaptioningSolver(object):
                     saver.save(sess, os.path.join(self.model_path, 'model'), global_step = e+1)
                     print "model-%s saved." % (e + 1)
 
+            # the second training loop
             print 'Start pre-training discriminator...'
             for e in range(0):#self.n_epochs):
 
@@ -252,9 +253,9 @@ class CaptioningSolver(object):
 
 	    	saver.save(sess, os.path.join(self.model_path, 'model_and_dis'), global_step = e+1)
 
-            print '#########################################################################'
+            # the third training loop
             print 'Start Adversarial Training...'
-            for e in range(self.n_epochs):
+            for e in range(0):#self.n_epochs):
 
                 rand_idxs = np.random.permutation(n_examples)
                 captions = captions[rand_idxs]

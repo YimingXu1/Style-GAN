@@ -1,6 +1,6 @@
 # ATTEND-GAN Model
 
-TensorFlow implementation of [Towards Generating Stylized Image Captions via Adversarial Training](https://arxiv.org/abs/1908.02943).
+TensorFlow implementation of [Towards Generating Stylized Image Captions via Adversarial Training](https://link.springer.com/chapter/10.1007/978-3-030-29908-8_22).
 <p align="center">
 <img src="./examples/samples.jpg" width=1000 high=700>
 </p>
@@ -8,15 +8,17 @@ TensorFlow implementation of [Towards Generating Stylized Image Captions via Adv
 ### Reference
 if you use our codes or models, please cite our paper:
 ```
-@article{nezami2019towards,
+@inproceedings{nezami2019towards,
   title={Towards Generating Stylized Image Captions via Adversarial Training},
-  author={Nezami, Omid Mohamad and Dras, Mark and Wan, Stephen and Paris, Cecile and Hamey, Len},
-  journal={arXiv preprint arXiv:1908.02943},
-  year={2019}
+  author={Nezami, Omid Mohamad and Dras, Mark and Wan, Stephen and Paris, C{\'e}cile and Hamey, Len},
+  booktitle={Pacific Rim International Conference on Artificial Intelligence},
+  pages={270--284},
+  year={2019},
+  organization={Springer}
 }
 ```
 ### Data
-We pretrain our models using [Microsoft COCO Dataset](http://cocodataset.org/#download). 
+We pretrain our models (both generator and discriminator) using [Microsoft COCO Dataset](http://cocodataset.org/#download). 
 Then, we train the models using [SentiCap Dataset](http://cm.cecs.anu.edu.au/post/senticap/).
 
 ## Requiremens
@@ -35,14 +37,30 @@ Then, we train the models using [SentiCap Dataset](http://cm.cecs.anu.edu.au/pos
 ### Train
 1. Download [Microsoft COCO Dataset](http://cocodataset.org/#download) including neutral image caption data and [SentiCap Dataset](http://cm.cecs.anu.edu.au/post/senticap/) including sentiment-bearing image caption data.
 2. Reseize the downloded images into [224, 224] and put them in "./images".
-3. Preprosses the COCO image caption data and place them in "./data/neutral". You can do this by [prepro.py](https://github.com/yunjey/show-attend-and-tell) and the ResNet-152 network trained on ImageNet, which is generating [7,7,2048] feature map (we use the Res5c layer of the network).
-4. Preprosses the SentiCap image caption data and place its positve part in "./data/positive" and its negative part in "./data/negative". You can do this by [prepro.py](https://github.com/yunjey/show-attend-and-tell) and the ResNet-152 network trained on ImageNet, which is generating [7,7,2048] feature map (we use the Res5c layer of the network).
-5. Pretrain the generator and discriminator using "./data/neutral". (python model_train.py)
-6. Train the generator and the discriminator using "./data/positive" for the positive part and "./data/negative" for the negative part. (python model_train.py)
+3. Preprosses the COCO image caption data and place them in "./data/neutral". You can do this by [prepro.py](https://github.com/yunjey/show-attend-and-tell) and the ResNet-152 network trained on ImageNet, to generate a [7,7,2048] feature map (we use the Res5c layer of the network).
+4. Preprosses the SentiCap image caption data and place its positve part in "./data/positive" and its negative part in "./data/negative". (Similar to the Step 3)
+5. Pretrain the generator using "./data/neutral". 
+````
+# only activiate the first training loop in "solver_WGAN.py by specifying the number of epochs"
+python model_train.py
+````
+6. Pretrain the discriminator using "./data/neutral". 
+````
+# only activiate the second training loop in "solver_WGAN.py by specifying the number of epochs"
+python model_train.py
+````
+7. Train the generator and the discriminator using "./data/positive" for the positive part and "./data/negative" for the negative part. 
+````
+# only activiate the tird training loop in "solver_WGAN.py by specifying the number of epochs"
+python model_train.py
+````
 
 ### Test
-1. Dowload [pretrained models]() and unzip the models in "./models".
-2. python model_test.py
+1. Add your trained model into "./models".
+2. Run the test script
+````
+python model_test.py
+````
 
 ### Results
 |                   | BLEU-1 | BLEU-4 | METEOR | ROUGE-L | CIDEr | SPICE
