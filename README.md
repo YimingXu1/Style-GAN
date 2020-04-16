@@ -41,17 +41,17 @@ Then, we train the models using [SentiCap Dataset](http://cm.cecs.anu.edu.au/pos
 4. Preprosses the SentiCap image caption data and place its positve part in "./data/positive" and its negative part in "./data/negative". (Similar to the Step 3)
 5. Pretrain the generator using "./data/neutral". 
 ````
-# only activiate the first training loop in "solver_WGAN.py by specifying the number of epochs"
+# only activiate the first training loop in "solver_WGAN.py" by specifying the number of epochs
 python model_train.py
 ````
 6. Pretrain the discriminator using "./data/neutral". 
 ````
-# only activiate the second training loop in "solver_WGAN.py by specifying the number of epochs"
+# only activiate the second training loop in "solver_WGAN.py" by specifying the number of epochs
 python model_train.py
 ````
 7. Train the generator and the discriminator using "./data/positive" for the positive part and "./data/negative" for the negative part. 
 ````
-# only activiate the tird training loop in "solver_WGAN.py by specifying the number of epochs"
+# only activiate the tird training loop in "solver_WGAN.py" by specifying the number of epochs.
 python model_train.py
 ````
 
